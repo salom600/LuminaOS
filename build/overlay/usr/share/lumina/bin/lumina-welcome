@@ -1,0 +1,23 @@
+#!/bin/sh
+# LuminaOS — Show a welcome window on first login
+# Simple zenity dialog with shortcuts to common tasks.
+
+zenity --info \
+    --title="Welcome to LuminaOS" \
+    --text="<span size='x-large' font-weight='bold'>Welcome to LuminaOS!</span>\n\n\
+LuminaOS is a lightweight, modern desktop Linux designed to feel familiar to Windows users.\n\n\
+<b>Get started:</b>\n\
+• Press the <b>Super</b> (Windows) key to open the app launcher\n\
+• Press <b>Super+S</b> to open the Lumina Store and install apps\n\
+• Double-click <b>Install LuminaOS</b> on the desktop to install to disk\n\n\
+<b>Helpful shortcuts:</b>\n\
+• Super + Enter — Terminal\n\
+• Super + E — File manager\n\
+• Super + B — Web browser\n\
+• Super + D — Show desktop\n\
+• Ctrl + Shift + Esc — Task manager\n\n\
+Enjoy your new system!" \
+    --width=520 --height=520 \
+    --timeout=15 2>/dev/null &
+
+exit 0

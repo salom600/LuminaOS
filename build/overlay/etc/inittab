@@ -1,0 +1,11 @@
+# LuminaOS — live ISO inittab
+# Only 2 TTYs to save RAM. Ly handles graphical login.
+
+::sysinit:/sbin/openrc sysinit
+::sysinit:/sbin/openrc boot
+::wait:/sbin/openrc default
+
+tty1::respawn:/sbin/getty 38400 tty1
+tty2::respawn:/sbin/getty 38400 tty2
+
+::shutdown:/sbin/openrc shutdown

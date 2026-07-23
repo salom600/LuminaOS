@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Lumina Store
+GenericName=App Store
+Comment=Install apps from apk and Flathub
+Comment[ar]=تثبيت التطبيقات من apk و Flathub
+Exec=/usr/share/lumina/bin/lumina-store
+Icon=lumina-store
+Categories=System;PackageManager;
+Keywords=app;install;store;package;
+Terminal=false
+StartupNotify=true

@@ -1,0 +1,183 @@
+/* ==========================================================================
+   LuminaOS — Waybar theme
+   Modern, translucent, Windows 11 / macOS-inspired
+   ========================================================================== */
+
+* {
+    border: none;
+    border-radius: 0;
+    font-family: "Noto Sans", "Font Awesome 6 Free", sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    min-height: 0;
+}
+
+/* --- the bar itself ------------------------------------------------------ */
+window#waybar {
+    background-color: rgba(20, 20, 28, 0.65);
+    color: #eaeaea;
+    border-radius: 14px;
+    margin: 0 12px;
+    padding: 4px 8px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+window#waybar.hidden {
+    opacity: 0.2;
+}
+
+/* --- modules common ------------------------------------------------------ */
+#workspaces,
+#taskbar,
+#tray,
+#pulseaudio,
+#network,
+#battery,
+#backlight,
+#clock,
+#custom-power {
+    background-color: transparent;
+    color: #eaeaea;
+    padding: 0 10px;
+    margin: 0 2px;
+    border-radius: 10px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+#workspaces button {
+    padding: 0 8px;
+    color: #b0b0b0;
+    background: transparent;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+}
+
+#workspaces button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+#workspaces button.active {
+    color: #ffffff;
+    background: rgba(0, 120, 212, 0.35);
+    box-shadow: inset 0 -2px 0 #00BCF2;
+}
+
+#workspaces button.urgent {
+    color: #ff6b6b;
+}
+
+/* --- taskbar (open apps) ------------------------------------------------- */
+#taskbar button {
+    padding: 0 10px;
+    color: #d8d8d8;
+    background: transparent;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+}
+
+#taskbar button:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+#taskbar button.active {
+    background: rgba(0, 120, 212, 0.22);
+    box-shadow: inset 0 -2px 0 #00BCF2;
+    color: #ffffff;
+}
+
+/* --- status modules ------------------------------------------------------ */
+#clock {
+    color: #ffffff;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0 14px;
+    margin: 0 4px;
+}
+
+#pulseaudio {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+#pulseaudio.muted {
+    color: #ff6b6b;
+}
+
+#network {
+    color: #6dd6ff;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+#network.disconnected {
+    color: #ff6b6b;
+}
+
+#battery {
+    color: #b6f0a3;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+#battery.warning {
+    color: #ffd166;
+    background: rgba(255, 209, 102, 0.12);
+}
+
+#battery.critical {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.12);
+    animation: blink 1s infinite;
+}
+
+#battery.charging {
+    color: #00ff88;
+}
+
+#backlight {
+    color: #ffcc66;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+#tray {
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0 8px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+}
+
+#custom-power {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.10);
+    margin-left: 8px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+#custom-power:hover {
+    background: rgba(255, 107, 107, 0.30);
+    color: #ffffff;
+}
+
+@keyframes blink {
+    to { background-color: rgba(255, 107, 107, 0.30); }
+}
+
+/* --- tooltip ------------------------------------------------------------- */
+tooltip {
+    background: rgba(20, 20, 28, 0.92);
+    border-radius: 8px;
+    color: #eaeaea;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+tooltip label {
+    color: #eaeaea;
+}

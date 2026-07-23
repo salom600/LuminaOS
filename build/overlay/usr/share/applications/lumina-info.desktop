@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=LuminaOS Info
+GenericName=System Info
+Comment=Show LuminaOS system information
+Exec=kitty --hold lumina-info
+Icon=dialog-information
+Categories=System;Utility;
+Terminal=false

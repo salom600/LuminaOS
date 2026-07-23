@@ -1,0 +1,6 @@
+# LuminaOS sudoers — wheel group can sudo without password on live ISO.
+# After install this file is replaced by the installer.
+
+Defaults env_keep += "LANG LC_* XDG_* QT_* GDK_* SDL_VIDEODRIVER MOZ_ENABLE_WAYLAND"
+
+%wheel ALL=(ALL) NOPASSWD: ALL

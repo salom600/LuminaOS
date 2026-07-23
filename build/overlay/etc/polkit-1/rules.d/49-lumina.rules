@@ -1,0 +1,25 @@
+// LuminaOS polkit rule — let wheel-group users install / remove packages
+// without typing the password, but only for specific safe actions.
+
+polkit.addRule(function(action, subject) {
+    if (subject.isInGroup("wheel")) {
+        // Allow apk operations via pkexec wrapper
+        if (action.id == "org.freedesktop.policykit.exec" &&
+            action.lookup("program") == "/sbin/apk") {
+            return polkit.Result.YES;
+        }
+        // Allow Calamares to run as root without password prompt
+        if (action.id == "org.freedesktop.policykit.exec" &&
+            action.lookup("program") == "/usr/sbin/calamares") {
+            return polkit.Result.YES;
+        }
+        // Allow NetworkManager to modify connections
+        if (action.id.indexOf("org.freedesktop.NetworkManager.") == 0) {
+            return polkit.Result.YES;
+        }
+        // Allow udisks2 for mounting USB drives in Thunar
+        if (action.id.indexOf("org.freedesktop.udisks2.") == 0) {
+            return polkit.Result.YES;
+        }
+    }
+});

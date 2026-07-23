@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Install LuminaOS
+GenericName=Installer
+Comment=One-click installer — copies LuminaOS to your hard disk
+Comment[ar]=مثبت بنقرة واحدة — ينسخ LuminaOS إلى قرصك الصلب
+Exec=/usr/share/lumina/bin/lumina-installer
+Icon=calamares
+Categories=System;Installer;
+Keywords=install;installer;setup;
+Terminal=false
+StartupNotify=true

@@ -1,0 +1,34 @@
+#!/bin/sh
+# LuminaOS — Show system info (used when reporting bugs)
+echo "=== LuminaOS system info ==="
+cat /etc/os-release 2>/dev/null
+echo
+echo "=== Kernel ==="
+uname -a
+echo
+echo "=== Uptime / load ==="
+uptime
+echo
+echo "=== Memory ==="
+free -h
+echo
+echo "=== Disk ==="
+df -h | grep -v tmpfs
+echo
+echo "=== CPU ==="
+lscpu | head -15
+echo
+echo "=== GPU ==="
+lspci -nnk | grep -A3 -iE 'vga|3d|display' | head -20
+echo
+echo "=== Network ==="
+ip -br link 2>/dev/null | head -10
+echo
+echo "=== Audio ==="
+pactl info 2>/dev/null | head -5
+echo
+echo "=== Running services ==="
+rc-status default 2>/dev/null | head -20
+echo
+echo "=== Installed Lumina scripts ==="
+ls -la /usr/share/lumina/bin/ 2>/dev/null

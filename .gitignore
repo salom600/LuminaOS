@@ -1,0 +1,28 @@
+# Build artifacts
+build/output/
+build/work/
+build/rootfs/
+*.iso
+*.squashfs
+*.img
+*.qcow2
+
+# Editor
+*~
+.*.swp
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local overrides
+.env
+.env.local
+secrets/
+*.token
+*.key
+
+# Logs
+*.log

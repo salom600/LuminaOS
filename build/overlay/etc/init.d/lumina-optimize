@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+# LuminaOS — apply runtime optimizations on boot
+
+description="Apply LuminaOS runtime optimizations"
+command="/usr/share/lumina/bin/lumina-optimize"
+command_background=false
+
+depend() {
+    need localmount
+    after bootmisc
+}
+
+start() {
+    ebegin "Applying LuminaOS optimizations"
+    $command >/dev/null 2>&1
+    eend 0
+}

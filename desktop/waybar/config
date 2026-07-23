@@ -1,0 +1,140 @@
+{
+  "layer": "top",
+  "position": "bottom",
+  "height": 44,
+  "margin-top": 0,
+  "margin-bottom": 4,
+  "margin-left": 0,
+  "margin-right": 0,
+  "spacing": 4,
+  "gtk-layer-shell": true,
+
+  "modules-left": [
+    "wlr/taskbar"
+  ],
+
+  "modules-center": [
+    "hyprland/workspaces"
+  ],
+
+  "modules-right": [
+    "tray",
+    "pulseaudio",
+    "network",
+    "battery",
+    "backlight",
+    "clock",
+    "custom/power"
+  ],
+
+  "hyprland/workspaces": {
+    "disable-scroll": false,
+    "all-outputs": true,
+    "warp-on-scroll": false,
+    "format": "{icon}",
+    "format-icons": {
+      "1": "○",
+      "2": "○",
+      "3": "○",
+      "4": "○",
+      "5": "○",
+      "6": "○",
+      "7": "○",
+      "8": "○",
+      "9": "○",
+      "10": "○",
+      "default": "○",
+      "urgent": "●",
+      "focused": "◉"
+    },
+    "persistent-workspaces": {
+      "1": [],
+      "2": [],
+      "3": [],
+      "4": []
+    }
+  },
+
+  "wlr/taskbar": {
+    "format": "{icon}",
+    "icon-size": 28,
+    "tooltip-format": "{title}",
+    "on-click": "activate",
+    "on-click-middle": "close",
+    "rewrite": {
+      "Firefox": "󰈹",
+      "kitty": "󰆍",
+      "Thunar": "󰉋",
+      "Lumina Store": "󰀻",
+      "Lumina Installer": "󰀙",
+      "Files": "󰉋"
+    }
+  },
+
+  "tray": {
+    "icon-size": 20,
+    "spacing": 8
+  },
+
+  "pulseaudio": {
+    "format": "{icon}  {volume}%",
+    "format-bluetooth": "{icon}  {volume}% 󰂯",
+    "format-muted": "󰖁  mute",
+    "format-icons": {
+      "headphone": "󰋋",
+      "default": ["󰕿", "󰖀", "󰕾"]
+    },
+    "on-click": "pavucontrol",
+    "scroll-step": 3
+  },
+
+  "network": {
+    "format-wifi": "󰤨  {essid}",
+    "format-ethernet": "󰈁  {ipaddr}",
+    "format-disconnected": "󰤭  offline",
+    "tooltip-format-wifi": "{essid} — {signalStrength}% @ {frequency}GHz",
+    "on-click": "nm-connection-editor"
+  },
+
+  "battery": {
+    "states": {
+      "warning": 30,
+      "critical": 15
+    },
+    "format": "{icon}  {capacity}%",
+    "format-charging": "󰂄  {capacity}%",
+    "format-plugged": "󰂄  {capacity}%",
+    "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+  },
+
+  "backlight": {
+    "device": "intel_backlight",
+    "format": "{icon}  {percent}%",
+    "format-icons": ["󰃞", "󰃟", "󰃠"],
+    "on-scroll-up": "brightnessctl set +5%",
+    "on-scroll-down": "brightnessctl set 5%-"
+  },
+
+  "clock": {
+    "format": "󰃭  {:%a %b %d   %H:%M}",
+    "format-alt": "󰃭  {:%Y-%m-%d}",
+    "tooltip-format": "<tt><small>{calendar}</small></tt>",
+    "calendar": {
+      "mode": "month",
+      "weeks-pos": "left",
+      "format": {
+        "months": "<span color='#ffead3'><b>{}</b></span>",
+        "days": "<span color='#ecc6d9'><b>{}</b></span>",
+        "weeks": "<span color='#99ffdd'><b>W{}</b></span>",
+        "weekdays": "<span color='#ffaff7'><b>{}</b></span>",
+        "today": "<span color='#ff6699'><b>{}</b></span>"
+      }
+    }
+  },
+
+  "custom/power": {
+    "format": " ⏻ ",
+    "on-click": "wofi --show menu --define menu_entries='⏾ Suspend\n⏼ Hibernate\n⭘ Reboot\n⏻ Shutdown\n⎋ Cancel'",
+    "tooltip": false
+  }
+}

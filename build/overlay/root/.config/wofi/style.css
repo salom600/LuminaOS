@@ -1,0 +1,77 @@
+/* ==========================================================================
+   LuminaOS — Wofi (start menu) theme
+   Translucent, rounded, Win11-style.  Centered, blurred, dark surface.
+   ========================================================================== */
+
+window {
+    margin: 0px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background-color: rgba(20, 20, 28, 0.78);
+    border-radius: 16px;
+    font-family: "Noto Sans", sans-serif;
+    font-size: 14px;
+    color: #eaeaea;
+}
+
+#input {
+    margin: 14px 18px 8px 18px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    font-size: 14px;
+}
+
+#input:focus {
+    border-color: rgba(0, 188, 242, 0.60);
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.20);
+}
+
+#inner-box {
+    margin: 4px 8px 12px 8px;
+    border: none;
+    background-color: transparent;
+    border-radius: 12px;
+}
+
+#outer-box {
+    margin: 0px;
+    border: none;
+    background-color: transparent;
+}
+
+#scroll {
+    margin: 0px;
+    border: none;
+}
+
+#text {
+    margin: 6px 10px;
+    color: #eaeaea;
+}
+
+#entry {
+    padding: 8px 10px;
+    margin: 2px 0;
+    border-radius: 8px;
+    background-color: transparent;
+}
+
+#entry:selected {
+    background-color: rgba(0, 120, 212, 0.35);
+    box-shadow: inset 0 -2px 0 #00BCF2;
+}
+
+#entry:selected #text {
+    color: #ffffff;
+}
+
+#entry:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+#img {
+    margin: 6px 10px 6px 12px;
+    background-color: transparent;
+}

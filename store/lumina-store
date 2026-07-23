@@ -1,0 +1,280 @@
+#!/bin/sh
+# ============================================================================
+#  Lumina Store — a tiny GUI front-end for apk + flatpak, using Zenity.
+#  This is intentionally small: ~300 lines of POSIX sh, no Python, no Qt.
+#  Launch with: lumina-store
+# ============================================================================
+#  Design:
+#    - Sidebar of categories (left)
+#    - App grid (right) with icon + name + description
+#    - Each app has Install / Uninstall / Launch buttons
+#    - Updates tab shows pending updates with one-click "Update all"
+# ============================================================================
+set -eu
+
+VERSION="1.0.0"
+APP_CATALOG="/usr/share/lumina/catalog.json"
+CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/lumina-store"
+mkdir -p "$CONF_DIR"
+
+# --- catalog (built-in if missing) -----------------------------------------
+init_catalog() {
+    if [ ! -f "$APP_CATALOG" ]; then
+        mkdir -p "$(dirname "$APP_CATALOG")"
+        cat > "$APP_CATALOG" <<'JSON'
+{
+  "featured": [
+    { "name": "Firefox",        "icon": "firefox",         "pkg": "firefox",                "type": "apk",     "desc": "Fast, private web browser",         "exec": "firefox" },
+    { "name": "Steam",          "icon": "steam",           "pkg": "com.valvesoftware.Steam","type": "flatpak", "desc": "Game store + Proton",                "exec": "flatpak run com.valvesoftware.Steam" },
+    { "name": "VLC",            "icon": "vlc",             "pkg": "vlc",                    "type": "apk",     "desc": "Plays any video or audio",          "exec": "vlc" },
+    { "name": "LibreOffice",    "icon": "libreoffice",     "pkg": "org.libreoffice.LibreOffice","type":"flatpak","desc": "Office suite (Word, Excel, ...)", "exec": "flatpak run org.libreoffice.LibreOffice" },
+    { "name": "GIMP",           "icon": "gimp",            "pkg": "gimp",                   "type": "apk",     "desc": "Image editor",                      "exec": "gimp" },
+    { "name": "Visual Studio Code", "icon": "code",        "pkg": "com.visualstudio.code", "type": "flatpak", "desc": "Code editor",                       "exec": "flatpak run com.visualstudio.code" }
+  ],
+  "browsing": [
+    { "name": "Firefox",        "icon": "firefox",         "pkg": "firefox",                "type": "apk",     "desc": "Fast, private web browser",         "exec": "firefox" },
+    { "name": "Chromium",       "icon": "chromium",        "pkg": "org.chromium.Chromium",  "type": "flatpak", "desc": "Open-source browser",               "exec": "flatpak run org.chromium.Chromium" },
+    { "name": "Vivaldi",        "icon": "vivaldi",         "pkg": "com.vivaldi.Vivaldi",    "type": "flatpak", "desc": "Feature-rich browser",              "exec": "flatpak run com.vivaldi.Vivaldi" }
+  ],
+  "games": [
+    { "name": "Steam",          "icon": "steam",           "pkg": "com.valvesoftware.Steam","type": "flatpak", "desc": "Steam gaming platform",             "exec": "flatpak run com.valvesoftware.Steam" },
+    { "name": "Lutris",         "icon": "lutris",          "pkg": "net.lutris.Lutris",      "type": "flatpak", "desc": "Game manager for all sources",      "exec": "flatpak run net.lutris.Lutris" },
+    { "name": "RetroArch",      "icon": "retroarch",       "pkg": "org.libretro.RetroArch", "type": "flatpak", "desc": "Emulator frontend",                 "exec": "flatpak run org.libretro.RetroArch" },
+    { "name": "0 A.D.",         "icon": "0ad",             "pkg": "com.play0ad.zeroad",     "type": "flatpak", "desc": "Real-time strategy game",           "exec": "flatpak run com.play0ad.zeroad" },
+    { "name": "SuperTuxKart",   "icon": "supertuxkart",    "pkg": "net.supertuxkart.SuperTuxKart", "type":"flatpak","desc": "Fun kart racing game",            "exec": "flatpak run net.supertuxkart.SuperTuxKart" }
+  ],
+  "media": [
+    { "name": "VLC",            "icon": "vlc",             "pkg": "vlc",                    "type": "apk",     "desc": "Universal media player",            "exec": "vlc" },
+    { "name": "mpv",            "icon": "mpv",             "pkg": "mpv",                    "type": "apk",     "desc": "Minimalist video player",           "exec": "mpv" },
+    { "name": "OBS Studio",     "icon": "obs",             "pkg": "com.obsproject.Studio",  "type": "flatpak", "desc": "Stream & record",                   "exec": "flatpak run com.obsproject.Studio" },
+    { "name": "GIMP",           "icon": "gimp",            "pkg": "gimp",                   "type": "apk",     "desc": "Image editor",                      "exec": "gimp" },
+    { "name": "Krita",          "icon": "krita",           "pkg": "org.kde.krita",          "type": "flatpak", "desc": "Digital painting",                  "exec": "flatpak run org.kde.krita" },
+    { "name": "Blender",        "icon": "blender",         "pkg": "org.blender.Blender",    "type": "flatpak", "desc": "3D creation",                       "exec": "flatpak run org.blender.Blender" },
+    { "name": "Spotify",        "icon": "spotify",         "pkg": "com.spotify.Client",     "type": "flatpak", "desc": "Music streaming",                   "exec": "flatpak run com.spotify.Client" }
+  ],
+  "office": [
+    { "name": "LibreOffice",    "icon": "libreoffice",     "pkg": "org.libreoffice.LibreOffice","type":"flatpak","desc": "Office suite",                    "exec": "flatpak run org.libreoffice.LibreOffice" },
+    { "name": "OnlyOffice",     "icon": "onlyoffice",      "pkg": "org.onlyoffice.desktopeditors","type":"flatpak","desc": "Office suite alternative",        "exec": "flatpak run org.onlyoffice.desktopeditors" },
+    { "name": "Evince",         "icon": "evince",          "pkg": "evince",                 "type": "apk",     "desc": "PDF reader",                        "exec": "evince" }
+  ],
+  "development": [
+    { "name": "Visual Studio Code", "icon": "code",        "pkg": "com.visualstudio.code",  "type": "flatpak", "desc": "Code editor",                       "exec": "flatpak run com.visualstudio.code" },
+    { "name": "Vim",            "icon": "vim",             "pkg": "vim",                    "type": "apk",     "desc": "Terminal text editor",              "exec": "vim" },
+    { "name": "Git",            "icon": "git",             "pkg": "git",                    "type": "apk",     "desc": "Version control",                   "exec": "git" },
+    { "name": "Docker",         "icon": "docker",          "pkg": "docker",                 "type": "apk",     "desc": "Containers",                        "exec": "docker" }
+  ]
+}
+JSON
+    fi
+}
+
+# --- helpers ----------------------------------------------------------------
+is_installed() {
+    pkg="$1"; type="$2"
+    case "$type" in
+        apk)     apk info -e "$pkg" >/dev/null 2>&1 ;;
+        flatpak) flatpak info "$pkg" >/dev/null 2>&1 ;;
+        *) return 1 ;;
+    esac
+}
+
+do_install() {
+    pkg="$1"; type="$2"
+    if [ "$type" = "apk" ]; then
+        pkexec apk add "$pkg" 2>&1
+    else
+        flatpak install -y --noninteractive flathub "$pkg" 2>&1
+    fi
+}
+
+do_uninstall() {
+    pkg="$1"; type="$2"
+    if [ "$type" = "apk" ]; then
+        pkexec apk del "$pkg" 2>&1
+    else
+        flatpak uninstall -y --noninteractive "$pkg" 2>&1
+    fi
+}
+
+# --- check deps -------------------------------------------------------------
+for dep in zenity jq pkexec; do
+    if ! command -v "$dep" >/dev/null 2>&1; then
+        echo "Missing dependency: $dep" >&2
+        exit 1
+    fi
+done
+
+init_catalog
+
+# --- main loop --------------------------------------------------------------
+while true; do
+    # Sidebar: pick a category
+    CHOICE=$(zenity --list \
+        --title="Lumina Store" \
+        --text="<span size='x-large' font-weight='bold'>Welcome to Lumina Store</span>\nChoose a category:" \
+        --column="" --hide-header \
+        --width=420 --height=560 \
+        "Featured" \
+        "Browsing" \
+        "Games" \
+        "Media" \
+        "Office" \
+        "Development" \
+        "System" \
+        "Updates" \
+        "Quit" \
+        2>/dev/null) || break
+
+    case "$CHOICE" in
+        ""|"Quit")
+            break
+            ;;
+
+        "Updates")
+            # Show pending updates, offer to update all
+            UPDATES_APK=$(apk list -u 2>/dev/null | awk '{print $1}' | head -50)
+            UPDATES_FLAT=$(flatpak update --no-interaction --columns=app 2>/dev/null | tail -n +2 | head -50)
+            MSG=""
+            [ -n "$UPDATES_APK" ]  && MSG="$MSG\n<b>System packages ($type):</b>\n$(echo "$UPDATES_APK"  | head -10)\n"
+            [ -n "$UPDATES_FLAT" ] && MSG="$MSG\n<b>Flatpak apps:</b>\n$(echo "$UPDATES_FLAT" | head -10)\n"
+
+            if [ -z "$MSG" ]; then
+                zenity --info --title="Lumina Store — Updates" \
+                       --text="Everything is up to date." --width=320 --timeout=3
+                continue
+            fi
+
+            if zenity --question --title="Lumina Store — Updates" \
+                      --text="Pending updates:\n\n$MSG\n\nUpdate all now?" \
+                      --width=440 --height=520; then
+                ( pkexec apk update
+                  pkexec apk upgrade
+                  flatpak update -y
+                ) 2>&1 | zenity --progress \
+                                --title="Updating..." \
+                                --text="Applying updates..." \
+                                --pulsate --auto-kill --auto-close --width=320
+                zenity --info --title="Lumina Store" --text="All updates applied." --width=320 --timeout=2
+            fi
+            ;;
+
+        "System")
+            # Already-installed apps
+            ITEMS=""
+            for cat in featured browsing games media office development; do
+                APPS=$(jq -r --arg c "$cat" '.[$c][] | "\(.name)|\(.pkg)|\(.type)|\(.exec)"' "$APP_CATALOG")
+                IFS='
+'
+                for line in $APPS; do
+                    name="${line%%|*}"; rest="${line#*|}"
+                    pkg="${rest%%|*}";  rest="${rest#*|}"
+                    typ="${rest%%|*}"; exec_="${rest#*|}"
+                    if is_installed "$pkg" "$typ"; then
+                        ITEMS="$ITEMS$pkg\n"
+                    fi
+                done
+                unset IFS
+            done
+            if [ -z "$ITEMS" ]; then
+                zenity --info --title="Lumina Store — Installed" \
+                       --text="No installed apps in catalog.\n\nYou can install more from other categories." \
+                       --width=380 --timeout=3
+            else
+                zenity --list --title="Installed apps" \
+                       --text="Installed apps:" \
+                       --column="Package" --width=420 --height=440 \
+                       $(echo -e "$ITEMS" | sort -u)
+            fi
+            ;;
+
+        *)
+            # Featured / Browsing / Games / Media / Office / Development
+            KEY=$(echo "$CHOICE" | tr '[:upper:]' '[:lower:]')
+            APPS=$(jq -r --arg c "$KEY" '.[$c][] | "\(.name)|\(.pkg)|\(.type)|\(.desc)|\(.exec)"' "$APP_CATALOG")
+            IFS='
+'
+            APP_LIST=""
+            for line in $APPS; do
+                name="${line%%|*}"; rest="${line#*|}"
+                pkg="${rest%%|*}";  rest="${rest#*|}"
+                typ="${rest%%|*}";  rest="${rest#*|}"
+                desc="${rest%%|*}"; exec_="${rest#*|}"
+                if is_installed "$pkg" "$typ"; then
+                    state="[Installed]"
+                else
+                    state="[Not installed]"
+                fi
+                APP_LIST="$APP_LIST$name — $desc $state\n$name|"
+            done
+            # Show grid
+            PICK=$(echo -e "$APP_LIST" | zenity --list \
+                --title="Lumina Store — $CHOICE" \
+                --text="Pick an app to install or launch:" \
+                --column="App" --column="" --hide-column=2 \
+                --width=640 --height=520 2>/dev/null)
+            [ -z "$PICK" ] && continue
+
+            # Re-resolve the app the user picked
+            APPS2=$(jq -r --arg c "$KEY" --arg n "$PICK" '.[$c][] | select(.name==$n) | "\(.name)|\(.pkg)|\(.type)|\(.desc)|\(.exec)"' "$APP_CATALOG")
+            line="$APPS2"
+            name="${line%%|*}"; rest="${line#*|}"
+            pkg="${rest%%|*}";  rest="${rest#*|}"
+            typ="${rest%%|*}";  rest="${rest#*|}"
+            desc="${rest%%|*}"; exec_="${rest#*|}"
+
+            INSTALLED=$(is_installed "$pkg" "$typ" && echo yes || echo no)
+
+            if [ "$INSTALLED" = "yes" ]; then
+                ACTION=$(zenity --list \
+                    --title="$name" \
+                    --text="<b>$name</b>\n\n$desc\n\n<b>Package:</b> $pkg ($typ)" \
+                    --column="Action" --hide-header \
+                    --width=320 --height=320 \
+                    "Launch" \
+                    "Uninstall" \
+                    "Cancel" 2>/dev/null)
+                case "$ACTION" in
+                    Launch)
+                        nohup $exec_ >/dev/null 2>&1 &
+                        ;;
+                    Uninstall)
+                        if zenity --question --title="Confirm" \
+                                  --text="Uninstall $name ($pkg)?"; then
+                            do_uninstall "$pkg" "$typ" 2>&1 | \
+                                zenity --progress --title="Uninstalling" \
+                                       --text="Removing $name..." --pulsate \
+                                       --auto-kill --auto-close --width=320
+                            zenity --info --title="Done" \
+                                   --text="$name uninstalled." --timeout=2
+                        fi
+                        ;;
+                esac
+            else
+                ACTION=$(zenity --list \
+                    --title="$name" \
+                    --text="<b>$name</b>\n\n$desc\n\n<b>Package:</b> $pkg ($typ)" \
+                    --column="Action" --hide-header \
+                    --width=320 --height=240 \
+                    "Install" \
+                    "Cancel" 2>/dev/null)
+                case "$ACTION" in
+                    Install)
+                        do_install "$pkg" "$typ" 2>&1 | \
+                            zenity --progress --title="Installing" \
+                                   --text="Installing $name..." --pulsate \
+                                   --auto-kill --auto-close --width=320
+                        if is_installed "$pkg" "$typ"; then
+                            zenity --info --title="Done" \
+                                   --text="$name installed." --timeout=2
+                        else
+                            zenity --error --title="Failed" \
+                                   --text="Could not install $name. Check network & try again."
+                        fi
+                        ;;
+                esac
+            fi
+            ;;
+    esac
+done
+
+exit 0

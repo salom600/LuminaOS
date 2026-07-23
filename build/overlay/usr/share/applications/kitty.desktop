@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal
+GenericName=Terminal
+Comment=Kitty terminal emulator
+Exec=kitty
+Icon=utilities-terminal
+Categories=System;TerminalEmulator;
+Keywords=terminal;shell;console;
+StartupNotify=true

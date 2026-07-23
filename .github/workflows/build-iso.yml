@@ -1,0 +1,143 @@
+name: Build ISO
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Optional version override (default: read from VERSION file)'
+        required: false
+        type: string
+
+# Cancel superseded runs on the same ref
+concurrency:
+  group: build-iso-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build LuminaOS ISO
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360   # GitHub's hard limit is 6h; we expect 20-40 min
+
+    steps:
+      # --------------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # --------------------------------------------------------------------
+      - name: Read version
+        id: ver
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+          fi
+
+      # --------------------------------------------------------------------
+      # Build inside the official Alpine container.
+      # We need --privileged so the chroot inside can mount /proc etc.
+      # GitHub's ubuntu-22.04 runners allow this.
+      - name: Build ISO in Alpine container
+        run: |
+          set -euo pipefail
+          echo "==> Building LuminaOS ${{ steps.ver.outputs.version }}"
+
+          docker run --rm --privileged \
+            -v "$PWD":/work \
+            -w /work \
+            -e VERSION="${{ steps.ver.outputs.version }}" \
+            alpine:3.20 \
+            sh -c '
+              set -eu
+              apk update
+              apk add --no-cache \
+                alpine-sdk apk-tools syslinux grub grub-efi mtools dosfstools \
+                xorriso squashfs-tools mkinitfs busybox-extras cpio findutils \
+                ca-certificates brotli zstd
+              sh build/build.sh
+            '
+
+      # --------------------------------------------------------------------
+      - name: Verify artifact exists
+        run: |
+          ls -la build/output/ || true
+          test -f "build/output/lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso"
+          test -f "build/output/lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso.sha256"
+          echo "## ISO build summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| File | Size |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|------|" >> "$GITHUB_STEP_SUMMARY"
+          SIZE=$(du -h "build/output/lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso" | cut -f1)
+          echo "| lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso | $SIZE |" >> "$GITHUB_STEP_SUMMARY"
+
+      # --------------------------------------------------------------------
+      - name: Compress ISO for upload
+        run: |
+          cd build/output
+          # zip is friendly for Windows users who download the artifact
+          zip -9 lumina-os-iso.zip lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso \
+                                    lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso.sha256
+          ls -la
+
+      # --------------------------------------------------------------------
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumina-os-${{ steps.ver.outputs.version }}-iso
+          path: |
+            build/output/lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso
+            build/output/lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso.sha256
+          retention-days: 90
+          compression-level: 0   # already a binary blob; no point re-compressing
+
+      # --------------------------------------------------------------------
+      # Release: only when this is a tag push (v1.0.0, v1.1.0, etc.)
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/output/lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso
+            build/output/lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso.sha256
+          name: LuminaOS ${{ steps.ver.outputs.version }}
+          body: |
+            ## LuminaOS ${{ steps.ver.outputs.version }}
+
+            **Downloads:**
+            - `lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso` — bootable hybrid ISO (~250 MB)
+            - `.sha256` — checksum
+
+            **Flash to USB:**
+            ```bash
+            sha256sum -c lumina-os-*.sha256
+            dd if=lumina-os-*.iso of=/dev/sdX bs=4M conv=fsync status=progress
+            ```
+
+            Or use [Rufus](https://rufus.ie) on Windows.
+
+            **What's new:** See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/docs/CHANGELOG.md) if present.
+
+            ---
+            Built by GitHub Actions run ${{ github.run_id }}.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # --------------------------------------------------------------------
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::ISO build failed — check the logs above for the failing step."
+          echo "Common causes:"
+          echo "  1. Network error pulling apk packages — re-run the workflow."
+          echo "  2. A package name in build/apks.list has been removed from Alpine — edit the file."
+          echo "  3. Disk full on the runner — re-run; ephemeral."

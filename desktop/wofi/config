@@ -1,0 +1,21 @@
+# LuminaOS — Wofi configuration (app launcher / start menu)
+# Themed as a Windows 11-style start menu (centered, blurred, rounded).
+
+show=drun
+prompt=Search apps...
+filter_rate=50
+allow_markup=true
+no_actions=true
+halign=fill
+orientation=vertical
+content_halign=fill
+hide_scroll=true
+width=520
+lines=10
+image_size=32
+columns=2
+normal_window=false
+term=kitty
+cache_file=/dev/null
+parse_search=true
+ insensitive=true

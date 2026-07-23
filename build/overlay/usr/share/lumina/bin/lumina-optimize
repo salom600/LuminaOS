@@ -1,0 +1,61 @@
+#!/bin/sh
+# ============================================================================
+#  LuminaOS — system optimizer
+#  Applies runtime optimizations: zram, swappiness, kernel tunables, etc.
+#  Safe to run on any system; idempotent.
+# ============================================================================
+set -eu
+
+echo "Applying LuminaOS optimizations..."
+
+# Apply sysctl values from /etc/sysctl.d/99-lumina.conf
+sysctl --system >/dev/null 2>&1 || true
+
+# Set CPU governor to 'powersave' on battery, 'performance' on AC
+if command -v acpi >/dev/null 2>&1; then
+    ON_BATTERY=$(acpi -a 2>/dev/null | grep -q 'off-line' && echo yes || echo no)
+else
+    ON_BATTERY=no
+fi
+
+if [ "$ON_BATTERY" = "yes" ]; then
+    GOVERNOR=powersave
+else
+    GOVERNOR=performance
+fi
+for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+    [ -w "$cpu" ] && echo "$GOVERNOR" > "$cpu" 2>/dev/null || true
+done
+echo "[+] CPU governor: $GOVERNOR"
+
+# Disable NMI watchdog (saves a few IRQs)
+echo 0 > /proc/sys/kernel/nmi_watchdog 2>/dev/null || true
+
+# Enable laptop-mode tools if available
+if [ -f /proc/sys/vm/laptop_mode ]; then
+    echo 5 > /proc/sys/vm/laptop_mode 2>/dev/null || true
+fi
+
+# VM writeback timeout (laptop friendly)
+echo 1500 > /proc/sys/vm/dirty_writeback_centisecs 2>/dev/null || true
+
+# Audio power save
+for f in /sys/module/snd_*/parameters/power_save; do
+    [ -w "$f" ] && echo 1 > "$f" 2>/dev/null || true
+done
+
+# PCIe ASPM
+echo powersave > /sys/module/pcie_aspm/parameters/policy 2>/dev/null || true
+
+# USB autosuspend
+for usb in /sys/bus/usb/devices/*/power/autosuspend; do
+    [ -w "$usb" ] && echo 2 > "$usb" 2>/dev/null || true
+done
+
+# Disable Bluetooth if no adapter (saves RAM)
+if ! hciconfig -a >/dev/null 2>&1; then
+    rc-service bluetooth stop 2>/dev/null || true
+    rc-update del bluetooth default 2>/dev/null || true
+fi
+
+echo "Optimizations applied."

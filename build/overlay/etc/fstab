@@ -1,0 +1,9 @@
+# /etc/fstab — live ISO mounts
+# Overlay tmpfs makes the squashfs root writable in RAM.
+
+tmpfs       /           tmpfs   defaults,size=75%,mode=0755   0 0
+proc        /proc       proc    defaults                      0 0
+sysfs       /sys        sysfs   defaults                      0 0
+devpts      /dev/pts    devpts  gid=5,mode=620                0 0
+tmpfs       /run        tmpfs   defaults,size=10%             0 0
+tmpfs       /tmp        tmpfs   defaults,size=10%             0 0

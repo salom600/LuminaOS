@@ -1,0 +1,27 @@
+#!/sbin/openrc-run
+# LuminaOS — first-boot OpenRC service
+# Runs /usr/share/lumina/bin/lumina-first-boot once on the first boot after
+# install, then disables itself.
+
+description="LuminaOS first-boot setup"
+command="/usr/share/lumina/bin/lumina-first-boot"
+command_background=false
+output_log="/var/log/lumina-first-boot.log"
+error_log="/var/log/lumina-first-boot.log"
+
+depend() {
+    need localmount
+    after netmount
+    after NetworkManager
+}
+
+start() {
+    if [ -f /var/lib/lumina/first-boot.done ]; then
+        ewarn "First-boot already completed; skipping."
+        rc-update del lumina-first-boot default 2>/dev/null || true
+        return 0
+    fi
+    ebegin "Running LuminaOS first-boot setup"
+    $command
+    eend $?
+}

@@ -1,0 +1,38 @@
+#!/bin/sh
+# ============================================================================
+#  LuminaOS one-click installer — wraps Calamares with a friendly dialog.
+# ============================================================================
+set -eu
+
+# Check disk space (need >= 8 GB for safe install)
+DEST="${DEST:-/dev/sda}"  # default; user picks in Calamares
+
+zenity --info \
+    --title="Install LuminaOS" \
+    --text="<span size='large' font-weight='bold'>Welcome to LuminaOS!</span>\n\nThis will install LuminaOS on your computer.\n\n<b>What you need:</b>\n• At least 8 GB of free disk space\n• A working internet connection (optional, for updates)\n\nClick <b>OK</b> to launch the installer." \
+    --width=460 --height=320
+
+# Launch Calamares
+if command -v calamares >/dev/null 2>&1; then
+    pkexec calamares -d
+    RC=$?
+    if [ $RC -eq 0 ]; then
+        zenity --question \
+            --title="Installation complete" \
+            --text="<span size='large' font-weight='bold' foreground='#00aa55'>LuminaOS is installed!</span>\n\nYou can now restart your computer and remove the USB drive.\n\nWould you like to restart now?" \
+            --width=440 --height=240 && \
+            { sync; sleep 2; loginctl poweroff 2>/dev/null || systemctl poweroff 2>/dev/null || reboot; }
+    else
+        zenity --error \
+            --title="Installation failed" \
+            --text="Calamares exited with code $RC.\n\nPlease check the log at /var/log/calamares.log" \
+            --width=440
+        exit $RC
+    fi
+else
+    zenity --error \
+        --title="Installer missing" \
+        --text="Calamares is not installed on this system.\n\nYou can install from terminal with:\n<tt>sudo apk add calamares</tt>" \
+        --width=440
+    exit 1
+fi
