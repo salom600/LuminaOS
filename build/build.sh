@@ -331,11 +331,16 @@ EOF
 
 # build a tiny standalone GRUB EFI binary
 # Use grub-mkstandalone if available; otherwise skip UEFI boot.
+# Note: we intentionally do NOT load squashfs.mod here — the GRUB EFI
+# binary only needs to read the FAT EFI System Partition and the ISO
+# filesystem to load vmlinuz + initramfs.  The kernel then mounts the
+# squashfs.  Including squashfs.mod fails because Alpine's grub-efi
+# package doesn't ship that module file.
 if command -v grub-mkstandalone >/dev/null 2>&1; then
     grub-mkstandalone \
         --format x86_64-efi \
         --output "$ISO_ROOT/efi/boot/bootx64.efi" \
-        --modules "part_gpt part_msdos fat squashfs iso9660 loopback normal \
+        --modules "part_gpt part_msdos fat iso9660 loopback normal \
                    echo ls linux multiboot2 boot configfile" \
         "boot/grub/grub.cfg=$ISO_ROOT/efi/boot/grub.cfg"
     echo "  Built GRUB EFI binary: $(ls -la $ISO_ROOT/efi/boot/bootx64.efi | awk '{print $5}') bytes"
