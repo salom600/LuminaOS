@@ -76,7 +76,6 @@ cat > "$ROOTFS/etc/apk/repositories" <<EOF
 https://dl-cdn.alpinelinux.org/alpine/v3.20/main
 https://dl-cdn.alpinelinux.org/alpine/v3.20/community
 EOF
-apk --root "$ROOTFS" --initdb --no-cache update
 apk --root "$ROOTFS" --initdb --no-cache add \
     alpine-base \
     busybox \
