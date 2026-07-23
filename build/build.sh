@@ -277,9 +277,33 @@ EOF
 mkdir -p "$ISO_ROOT/boot/syslinux"
 cp "$ISO_ROOT/boot/syslinux.cfg" "$ISO_ROOT/boot/syslinux/syslinux.cfg"
 # copy syslinux files from build host
-for f in isolinux.bin ldlinux.c32 menu.c32 libutil.c32 libcom32.c32 vesamenu.c32; do
-    cp "/usr/share/syslinux/$f" "$ISO_ROOT/boot/syslinux/" 2>/dev/null || true
+# Alpine's syslinux package puts files under /usr/share/syslinux/.  Some
+# versions also install to /usr/lib/syslinux/.  Find the actual location
+# and fail loudly if isolinux.bin is missing — without it, xorriso can't
+# build a bootable ISO.
+SYSLINUX_DIR=""
+for d in /usr/share/syslinux /usr/lib/syslinux /usr/lib/syslinux/bios; do
+    if [ -e "$d/isolinux.bin" ]; then
+        SYSLINUX_DIR="$d"
+        break
+    fi
 done
+if [ -z "$SYSLINUX_DIR" ]; then
+    echo "ERROR: isolinux.bin not found.  Install syslinux on the build host."
+    echo "  Searched: /usr/share/syslinux /usr/lib/syslinux /usr/lib/syslinux/bios"
+    find / -name isolinux.bin 2>/dev/null | head -5
+    exit 1
+fi
+echo "  Found syslinux files at: $SYSLINUX_DIR"
+for f in isolinux.bin ldlinux.c32 menu.c32 libutil.c32 libcom32.c32 vesamenu.c32; do
+    [ -e "$SYSLINUX_DIR/$f" ] && cp "$SYSLINUX_DIR/$f" "$ISO_ROOT/boot/syslinux/"
+done
+# verify isolinux.bin is non-empty
+if [ ! -s "$ISO_ROOT/boot/syslinux/isolinux.bin" ]; then
+    echo "ERROR: isolinux.bin is missing or empty after copy"
+    ls -la "$ISO_ROOT/boot/syslinux/"
+    exit 1
+fi
 
 # bootloader config — grub (UEFI)
 cat > "$ISO_ROOT/efi/boot/grub.cfg" <<'EOF'
@@ -306,15 +330,27 @@ menuentry "LuminaOS (debug)" {
 EOF
 
 # build a tiny standalone GRUB EFI binary
-grub-mkstandalone \
-    --format x86_64-efi \
-    --output "$ISO_ROOT/efi/boot/bootx64.efi" \
-    --modules "part_gpt part_msdos fat squashfs iso9660 loopback normal \
-               echo ls linux multiboot2 boot configfile" \
-    "boot/grub/grub.cfg=$ISO_ROOT/efi/boot/grub.cfg" 2>/dev/null || true
+# Use grub-mkstandalone if available; otherwise skip UEFI boot.
+if command -v grub-mkstandalone >/dev/null 2>&1; then
+    grub-mkstandalone \
+        --format x86_64-efi \
+        --output "$ISO_ROOT/efi/boot/bootx64.efi" \
+        --modules "part_gpt part_msdos fat squashfs iso9660 loopback normal \
+                   echo ls linux multiboot2 boot configfile" \
+        "boot/grub/grub.cfg=$ISO_ROOT/efi/boot/grub.cfg"
+    echo "  Built GRUB EFI binary: $(ls -la $ISO_ROOT/efi/boot/bootx64.efi | awk '{print $5}') bytes"
+else
+    echo "  WARNING: grub-mkstandalone not found — ISO will not be UEFI-bootable"
+fi
 
 # also place an isolinux.bin at the root for xorriso's -isohybrid
-cp /usr/share/syslinux/isolinux.bin "$ISO_ROOT/isolinux.bin" 2>/dev/null || true
+cp "$SYSLINUX_DIR/isolinux.bin" "$ISO_ROOT/isolinux.bin"
+
+# Find isohdpfx.bin for hybrid ISO (lets the ISO be dd'd to USB)
+ISOHPFPX=""
+for f in /usr/share/syslinux/isohdpfx.bin /usr/lib/syslinux/isohdpfx.bin /usr/lib/syslinux/bios/isohdpfx.bin; do
+    [ -e "$f" ] && ISOHPFPX="$f" && break
+done
 cp /usr/share/syslinux/ldlinux.c32  "$ISO_ROOT/ldlinux.c32"  2>/dev/null || true
 
 # assemble ISO with xorriso (BIOS + UEFI hybrid)
@@ -326,7 +362,7 @@ xorriso -as mkisofs \
     -eltorito-boot boot/syslinux/isolinux.bin \
     -eltorito-catalog boot/syslinux/boot.cat \
     -no-emul-boot -boot-load-size 4 -boot-info-table \
-    -isohybrid-mbr /usr/share/syslinux/isohdpfx.bin \
+    $([ -n "$ISOHPFPX" ] && echo "-isohybrid-mbr $ISOHPFPX") \
     -eltorito-alt-boot \
     -e efi/boot/bootx64.efi \
     -no-emul-boot -isohybrid-gpt-basdat \
