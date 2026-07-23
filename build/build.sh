@@ -67,7 +67,9 @@ mkdir -p "$ROOTFS"
 
 # 3a. Bootstrap a minimal Alpine rootfs via apk --initdb
 echo "==> [3/7] Bootstrapping Alpine rootfs"
-mkdir -p "$ROOTFS/etc/apk"
+mkdir -p "$ROOTFS/etc/apk/keys"
+# CRITICAL: copy Alpine signing keys so apk trusts the package indices
+cp /etc/apk/keys/* "$ROOTFS/etc/apk/keys/" 2>/dev/null || true
 cp /etc/apk/repositories "$ROOTFS/etc/apk/repositories"
 apk --root "$ROOTFS" --initdb --no-cache add \
     alpine-base \
