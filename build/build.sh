@@ -83,43 +83,55 @@ apk --root "$ROOTFS" --initdb --no-cache add \
 # 3b. Add the kernel + firmware (meta linux-firmware pulls in all sub-packages)
 echo "==> [4/7] Installing package list from $APKS_LIST"
 
-# Tolerant installer: install packages one by one so that a single missing
-# package doesn't abort the whole build.  Missing packages are logged as a
-# WARNING so the user can see them in the CI log and fix apks.list later.
+# Tolerant installer: try a BULK install first (fast + atomic).  If the bulk
+# install fails because some packages are missing, parse the error, drop the
+# missing packages, and retry.  This is much more reliable than per-package
+# install because per-package install leaves the apk database in a bad state
+# after the first failure and every subsequent install also fails.
 MISSING_LOG="$WORK_DIR/missing-packages.log"
 : > "$MISSING_LOG"
 
-install_pkg() {
-    pkg="$1"
-    [ -z "$pkg" ] && return 0
-    case "$pkg" in \#*) return 0;; esac
-    if apk --root "$ROOTFS" --no-cache add "$pkg" >/dev/null 2>&1; then
-        printf '  [+] %-40s installed\n' "$pkg"
-    else
-        printf '  [!] %-40s NOT FOUND - skipping\n' "$pkg"
-        echo "$pkg" >> "$MISSING_LOG"
-    fi
-}
-
-# 3c. Kernel + firmware first (so subsequent packages can satisfy deps)
-for pkg in linux-lts linux-firmware linux-firmware-i915 linux-firmware-amdgpu; do
-    install_pkg "$pkg"
-done
-
-# 3d. All other packages from apks.list
+# Read all non-comment, non-blank lines from apks.list
+PKGS=""
 while IFS= read -r line; do
-    # strip comments and whitespace
     line="${line%%#*}"
     line="$(echo "$line" | tr -d '[:space:]')"
     [ -z "$line" ] && continue
-    install_pkg "$line"
+    PKGS="$PKGS $line"
 done < "$APKS_LIST"
+
+# Also include kernel + firmware explicitly
+PKGS="linux-lts linux-firmware $PKGS"
+
+echo "  Bulk-installing $(echo $PKGS | wc -w) packages ..."
+ATTEMPTS=0
+MAX_ATTEMPTS=8
+while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
+    ATTEMPTS=$((ATTEMPTS + 1))
+    ERRORS=$(apk --root "$ROOTFS" --no-cache add $PKGS 2>&1) && {
+        echo "  [+] bulk install succeeded on attempt $ATTEMPTS"
+        break
+    }
+    # Parse out the missing package names from the error
+    NEW_MISSING=$(echo "$ERRORS" | grep -oE '  [a-zA-Z0-9_.+-]+ \(no such package\):' | sed -E 's/^  //; s/ \(no such package\)://')
+    if [ -z "$NEW_MISSING" ]; then
+        # No (no such package) errors found — something else broke.
+        echo "$ERRORS" | tail -10
+        echo "  [!] bulk install failed for non-missing-package reason (see above)."
+        break
+    fi
+    echo "  [!] attempt $ATTEMPTS: missing $(echo $NEW_MISSING | tr '\n' ' ')"
+    for missing in $NEW_MISSING; do
+        echo "$missing" >> "$MISSING_LOG"
+        PKGS="$(echo " $PKGS " | sed "s/ $missing / /")"
+    done
+done
 
 MISSING_COUNT=$(wc -l < "$MISSING_LOG" | tr -d ' ')
 if [ "$MISSING_COUNT" -gt 0 ]; then
     echo
     echo "==> WARNING: $MISSING_COUNT package(s) not found in Alpine 3.20 repos:"
-    sed 's/^/      - /' "$MISSING_LOG"
+    sort -u "$MISSING_LOG" | sed 's/^/      - /'
     echo "    These were skipped. Edit build/apks.list if you need them."
     echo
 fi
@@ -181,7 +193,16 @@ features="ata base ide scsi usb virtio ext4 squashfs iso9660 vfat fs-uuid resume
 EOF
 
 # 3j. Regenerate initramfs
-chroot "$ROOTFS" mkinitfs -c /etc/mkinitfs/mkinitfs.conf "$(ls /lib/modules)"
+# IMPORTANT: list /lib/modules *inside* the rootfs, not on the build host.
+# Otherwise we pick up the host kernel version (e.g. Ubuntu's 6.8.0-azure)
+# which doesn't exist in the chroot.
+KERNEL_VER=$(ls "$ROOTFS/lib/modules" 2>/dev/null | head -1)
+if [ -z "$KERNEL_VER" ]; then
+    echo "ERROR: no kernel modules found in $ROOTFS/lib/modules — was linux-lts installed?"
+    exit 1
+fi
+echo "  Regenerating initramfs for kernel $KERNEL_VER"
+chroot "$ROOTFS" mkinitfs -c /etc/mkinitfs/mkinitfs.conf "$KERNEL_VER"
 
 # --- 4. Build the SquashFS --------------------------------------------------
 echo "==> [6/7] Packing rootfs into SquashFS"
