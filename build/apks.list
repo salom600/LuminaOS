@@ -31,12 +31,11 @@ less
 which
 
 # === kernel & firmware =======================================================
+# linux-firmware is the meta-package: it pulls in ALL sub-packages including
+# i915, amdgpu, rtw88, iwlwifi, etc.  Don't add the sub-packages directly —
+# their standalone names change between Alpine versions.
 linux-lts
 linux-firmware
-linux-firmware-i915
-linux-firmware-amdgpu
-linux-firmware-rtw88
-linux-firmware-iwlwifi
 mkinitfs
 
 # === boot ====================================================================

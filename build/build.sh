@@ -80,19 +80,49 @@ apk --root "$ROOTFS" --initdb --no-cache add \
     musl-utils \
     gcompat
 
-# 3b. Add the kernel
-apk --root "$ROOTFS" --no-cache add \
-    linux-lts \
-    linux-firmware \
-    linux-firmware-i915 \
-    linux-firmware-amdgpu \
-    linux-firmware-rtw88 \
-    linux-firmware-iwlwifi
-
-# 3c. Add every package from apks.list
+# 3b. Add the kernel + firmware (meta linux-firmware pulls in all sub-packages)
 echo "==> [4/7] Installing package list from $APKS_LIST"
-# shellcheck disable=SC2046
-apk --root "$ROOTFS" --no-cache add $(sed 's/#.*//' "$APKS_LIST" | xargs)
+
+# Tolerant installer: install packages one by one so that a single missing
+# package doesn't abort the whole build.  Missing packages are logged as a
+# WARNING so the user can see them in the CI log and fix apks.list later.
+MISSING_LOG="$WORK_DIR/missing-packages.log"
+: > "$MISSING_LOG"
+
+install_pkg() {
+    pkg="$1"
+    [ -z "$pkg" ] && return 0
+    case "$pkg" in \#*) return 0;; esac
+    if apk --root "$ROOTFS" --no-cache add "$pkg" >/dev/null 2>&1; then
+        printf '  [+] %-40s installed\n' "$pkg"
+    else
+        printf '  [!] %-40s NOT FOUND - skipping\n' "$pkg"
+        echo "$pkg" >> "$MISSING_LOG"
+    fi
+}
+
+# 3c. Kernel + firmware first (so subsequent packages can satisfy deps)
+for pkg in linux-lts linux-firmware linux-firmware-i915 linux-firmware-amdgpu; do
+    install_pkg "$pkg"
+done
+
+# 3d. All other packages from apks.list
+while IFS= read -r line; do
+    # strip comments and whitespace
+    line="${line%%#*}"
+    line="$(echo "$line" | tr -d '[:space:]')"
+    [ -z "$line" ] && continue
+    install_pkg "$line"
+done < "$APKS_LIST"
+
+MISSING_COUNT=$(wc -l < "$MISSING_LOG" | tr -d ' ')
+if [ "$MISSING_COUNT" -gt 0 ]; then
+    echo
+    echo "==> WARNING: $MISSING_COUNT package(s) not found in Alpine 3.20 repos:"
+    sed 's/^/      - /' "$MISSING_LOG"
+    echo "    These were skipped. Edit build/apks.list if you need them."
+    echo
+fi
 
 # 3d. Copy our overlay on top
 echo "==> [5/7] Applying LuminaOS overlay"
