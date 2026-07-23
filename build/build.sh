@@ -70,7 +70,13 @@ echo "==> [3/7] Bootstrapping Alpine rootfs"
 mkdir -p "$ROOTFS/etc/apk/keys"
 # CRITICAL: copy Alpine signing keys so apk trusts the package indices
 cp /etc/apk/keys/* "$ROOTFS/etc/apk/keys/" 2>/dev/null || true
-cp /etc/apk/repositories "$ROOTFS/etc/apk/repositories"
+# Explicitly enable both main and community for v3.20 — do not rely on the
+# host's repositories file, because some alpine:3.20 images only ship `main`.
+cat > "$ROOTFS/etc/apk/repositories" <<EOF
+https://dl-cdn.alpinelinux.org/alpine/v3.20/main
+https://dl-cdn.alpinelinux.org/alpine/v3.20/community
+EOF
+apk --root "$ROOTFS" --initdb --no-cache update
 apk --root "$ROOTFS" --initdb --no-cache add \
     alpine-base \
     busybox \
@@ -215,9 +221,28 @@ ISO_ROOT="$WORK_DIR/iso"
 mkdir -p "$ISO_ROOT/boot" "$ISO_ROOT/lumina" "$ISO_ROOT/efi/boot"
 
 # copy kernel + initramfs
+# Alpine installs /boot/vmlinuz-lts and mkinitfs creates /boot/initramfs-lts
+# (stable symlinks).  Prefer those; fall back to version-suffixed names.
 KERNEL_VER=$(ls "$ROOTFS/lib/modules" | head -1)
-cp "$ROOTFS/boot/vmlinuz-$KERNEL_VER" "$ISO_ROOT/boot/vmlinuz"
-cp "$ROOTFS/boot/initramfs-$KERNEL_VER" "$ISO_ROOT/boot/initramfs"
+if [ -e "$ROOTFS/boot/vmlinuz-lts" ]; then
+    cp "$ROOTFS/boot/vmlinuz-lts" "$ISO_ROOT/boot/vmlinuz"
+elif [ -e "$ROOTFS/boot/vmlinuz-$KERNEL_VER" ]; then
+    cp "$ROOTFS/boot/vmlinuz-$KERNEL_VER" "$ISO_ROOT/boot/vmlinuz"
+else
+    echo "ERROR: cannot find kernel image in $ROOTFS/boot/"
+    ls -la "$ROOTFS/boot/" 2>&1 | head -20
+    exit 1
+fi
+
+if [ -e "$ROOTFS/boot/initramfs-lts" ]; then
+    cp "$ROOTFS/boot/initramfs-lts" "$ISO_ROOT/boot/initramfs"
+elif [ -e "$ROOTFS/boot/initramfs-$KERNEL_VER" ]; then
+    cp "$ROOTFS/boot/initramfs-$KERNEL_VER" "$ISO_ROOT/boot/initramfs"
+else
+    echo "ERROR: cannot find initramfs in $ROOTFS/boot/"
+    ls -la "$ROOTFS/boot/" 2>&1 | head -20
+    exit 1
+fi
 
 # copy squashfs
 cp "$SQUASHFS" "$ISO_ROOT/lumina/lumina.squashfs"
