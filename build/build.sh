@@ -379,6 +379,11 @@ xorriso -as mkisofs \
 
 # --- 6. Summary -------------------------------------------------------------
 echo
+# Make output files world-readable so the GitHub Actions runner user can
+# access them after the Docker container exits (files are otherwise owned
+# by root inside the container).
+chmod -R a+rX "$OUTPUT_DIR" 2>/dev/null || true
+
 echo "================================================================"
 echo "  Build complete"
 echo "  ISO    : $OUTPUT_DIR/$ISO_NAME"

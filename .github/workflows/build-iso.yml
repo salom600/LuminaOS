@@ -79,10 +79,15 @@ jobs:
           echo "| lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso | $SIZE |" >> "$GITHUB_STEP_SUMMARY"
 
       # --------------------------------------------------------------------
-      - name: Compress ISO for upload
+      - name: Fix artifact ownership & compress for upload
         run: |
-          cd build/output
+          # Files were created as root inside the Alpine container; chown to
+          # the runner user so subsequent steps can read them.
+          sudo chown -R "$(id -u):$(id -g)" build/output/
+          sudo chmod -R a+rX build/output/
+          ls -la build/output/
           # zip is friendly for Windows users who download the artifact
+          cd build/output
           zip -9 lumina-os-iso.zip lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso \
                                     lumina-os-${{ steps.ver.outputs.version }}-x86_64.iso.sha256
           ls -la
